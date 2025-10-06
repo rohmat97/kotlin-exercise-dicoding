@@ -1,8 +1,2 @@
-pluginManagement {
-    repositories {
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
+rootProject.name = "Kotlin Proyek"
 
-rootProject.name = "exercise-kotlin"

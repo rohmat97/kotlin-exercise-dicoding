@@ -1,60 +1,97 @@
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import org.jmailen.gradle.kotlinter.tasks.LintTask
+import org.gradle.api.DefaultTask
+import org.gradle.api.tasks.Internal
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+open class ExecOperationsTask @Inject constructor(@Internal val execOperations: ExecOperations) : DefaultTask()
+
 plugins {
-    kotlin("jvm") version "2.0.20"
+    kotlin("jvm") version "1.9.0"
     application
+    id("org.jmailen.kotlinter") version "3.16.0"
 }
 
 group = "org.example"
-version = "0.1.0"
+version = "2.1.4"
 
 repositories {
     mavenCentral()
+    google()
 }
 
-dependencies {
-    testImplementation(kotlin("test"))
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-}
-
+// Pastikan Kotlin menargetkan JVM 17 agar kompatibel dengan lingkungan JDK saat ini
 kotlin {
     jvmToolchain(17)
 }
 
-tasks.test {
+tasks.withType<KotlinCompile>().configureEach {
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+tasks.withType<Test> {
     useJUnitPlatform()
 }
 
-// Custom tasks to run each exercise individually
-tasks.register<JavaExec>("runLatihan1") {
-    dependsOn(tasks.compileKotlin)
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("Latihan1_TipeData.Exercise1Kt")
+dependencies {
+    implementation(kotlin("stdlib"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.2")
+    testImplementation("org.spekframework.spek2:spek-dsl-jvm:2.0.18")
+    testRuntimeOnly("org.spekframework.spek2:spek-runner-junit5:2.0.18")
+    testRuntimeOnly("org.jetbrains.kotlin:kotlin-reflect:1.6.10")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.2")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.2")
 }
 
-tasks.register<JavaExec>("runLatihan2") {
-    dependsOn(tasks.compileKotlin)
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("Latihan2.ControlFlow.Exercise2Kt")
+tasks.getByName<Test>("test") {
+    runBlocking {
+        useJUnitPlatform()
+        delay(1000)
+        finalizedBy("testReportExam")
+    }
 }
 
-tasks.register<JavaExec>("runLatihan3") {
-    dependsOn(tasks.compileKotlin)
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("Latihan3.Collections.Exercise3Kt")
+tasks.register<TestReportExam>("testReportExam")
+
+tasks.register<LintTask>("lint") {
+    group = "verification"
+    source(files("src/main"))
+    reports.set(
+        mapOf(
+            "plain" to file("build/lint-result/lint-report.txt"),
+            "json" to file("build/lint-result/lint-report.json")
+        )
+    )
 }
 
-tasks.register<JavaExec>("runLatihan4") {
-    dependsOn(tasks.compileKotlin)
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("Latihan4.OOP.Exercise4Kt")
+tasks.register<ExecOperationsTask>("runMainCriteriaTest") {
+    doFirst {
+        execOperations.exec {
+            commandLine("./gradlew", "test")
+            args("--tests", "ExamTestMain", "-q")
+        }
+    }
 }
 
-tasks.register<JavaExec>("runLatihan5") {
-    dependsOn(tasks.compileKotlin)
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("Latihan5.Coroutines.Exercise5Kt")
+tasks.register<ExecOperationsTask>("runOptionalCriteriaTest") {
+    doFirst {
+        execOperations.exec {
+            commandLine("./gradlew", "test")
+            args("--tests", "ExamTestOptional", "-q")
+        }
+    }
 }
 
-application {
-    mainClass.set("MainKt")
+tasks.register<ExecOperationsTask>("runAllTest") {
+    doFirst {
+        execOperations.exec() {
+            commandLine("./gradlew", "test")
+            args("--continue", "-q")
+        }
+    }
 }
